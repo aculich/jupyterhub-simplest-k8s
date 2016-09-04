@@ -1,15 +1,25 @@
+# future… switch a replicationcontroller to a deployment
+# for blue/green deployment setups
+
+# pods are ephemeral, by design
 apiVersion: v1
 kind: Service
 metadata:
   name: hub
 spec:
+# will allocate an externel IP
+# l7 is HTTP level
+# l3 is TCP… being used here
+# this is used to guarantee that we get a stable external IP
+# but this doesn’t need to be used for the hub, only for the proxy
+# so the proxy can talk to the hub
   type: LoadBalancer
   selector:
     name: hub
   ports:
     - protocol: TCP
       port: 80
-      targetPort: 8000
+      targetPort: 8000   # refers to the pod bay doors defined below
 ---
 apiVersion: v1
 kind: ReplicationController
@@ -24,14 +34,17 @@ spec:
       labels:
         name: hub
     spec:
+      # if we wanted to change the restart policy, do it here
       containers:
       - name: hub
-        image: yuvipanda/simplehub:v1.1
+        image: yuvipanda/simplehub:v1.2
+        # configuration should happen with envs, refer to 12-factor
+        # value comes from metadata of the pod itself
         env:
         - name: POD_NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
         ports:
-          - containerPort: 8000
+          - containerPort: 8000   # open the pod bay doors, HAL
             name: hub-proxy
